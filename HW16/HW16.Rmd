@@ -1,0 +1,352 @@
+---
+title: "HW16"
+author: '109006206'
+output: pdf_document
+header-includes:
+  - \usepackage{setspace}
+  - \onehalfspacing
+  - \usepackage{fancyhdr}
+  - \fancyhead[r]{109006206}
+  - \pagestyle{fancy}
+---
+
+## Set Working Directories & Reading Files
+<br>
+
+```{r ,message=FALSE,out.width="80%"}
+library(rpart)
+setwd("/Users/olivia/Documents/Documents/Study/Semester 6/BACS/HW16")
+
+# Load the data and remove missing values
+cars <- read.table("auto-data.txt", header=FALSE, na.strings = "?")
+names(cars) <- c("mpg", "cylinders", "displacement", "horsepower", "weight", "acceleration", 
+                 "model_year", "origin", "car_name")
+cars$car_name <- NULL
+cars <- na.omit(cars)
+# IMPORTANT: Shuffle the rows of data in advance for this project!
+set.seed(27935752)
+cars <- cars[sample(1:nrow(cars)),]
+# DV and IV of formulas we are interested in
+set.seed(27935752)
+cars_full <- mpg ~ cylinders + displacement + horsepower + weight + acceleration + 
+  model_year + factor(origin)
+cars_reduced <- mpg ~ weight + acceleration + model_year + factor(origin)
+cars_full_poly2 <- mpg ~ poly(cylinders, 2) + poly(displacement, 2) + poly(horsepower, 2) + 
+  poly(weight, 2) + poly(acceleration, 2) + model_year + 
+  factor(origin)
+cars_reduced_poly2 <- mpg ~ poly(weight, 2) + poly(acceleration,2) + model_year + 
+  factor(origin)
+cars_reduced_poly6 <- mpg ~ poly(weight, 6) + poly(acceleration,6) + model_year + 
+  factor(origin)
+```
+
+## QUESTION 1
+
+```{r ,message=FALSE,out.width="80%"}
+lm_full <- lm(cars_full, data = cars)
+
+lm_reduced <- lm(cars_reduced, data = cars)
+
+lm_poly2_full <- lm(cars_full_poly2, data = cars)
+
+lm_poly2_reduced <- lm(cars_reduced_poly2, data = cars)
+
+lm_poly6_reduced <- lm(cars_reduced_poly6, data = cars)
+
+library(rpart)
+rt_full <- rpart(formula = cars_full, data = cars)
+rt_reduced <- rpart(formula = cars_reduced, data = cars)
+
+mse_in <- function(model, data) {
+  predicted <- predict(model, data)
+  actual <- data$mpg
+  mse <- mean((actual - predicted)^2)
+  return(mse)
+}
+
+mse_lm_full <- mse_in(lm_full, cars)
+# Compute MSEin for lm_reduced
+mse_lm_reduced <- mse_in(lm_reduced, cars)
+
+# Compute MSEin for lm_poly2_full
+mse_lm_poly2_full <- mse_in(lm_poly2_full, cars)
+
+# Compute MSEin for lm_poly2_reduced
+mse_lm_poly2_reduced <- mse_in(lm_poly2_reduced, cars)
+
+# Compute MSEin for lm_poly6_reduced
+mse_lm_poly6_reduced <- mse_in(lm_poly6_reduced, cars)
+
+# Compute MSEin for rt_full
+mse_rt_full <- mse_in(rt_full, cars)
+
+# Compute MSEin for rt_reduced
+mse_rt_reduced <- mse_in(rt_reduced, cars)
+
+# Create a data frame to report the MSEin values
+mse_report <- data.frame(
+  Model = c("lm_full", "lm_reduced", "lm_poly2_full", "lm_poly2_reduced", "lm_poly6_reduced", "rt_full", "rt_reduced"),
+  MSEin = c(mse_lm_full, mse_lm_reduced, mse_lm_poly2_full, mse_lm_poly2_reduced, mse_lm_poly6_reduced, mse_rt_full, mse_rt_reduced)
+)
+
+# Print the MSEin report
+print(mse_report)
+
+```
+
+\newpage 
+
+## QUESTION 2
+
+### Part A
+```{r ,message=FALSE,out.width="80%"}
+train_indices <- sample(1:nrow(cars), size=0.70*nrow(cars))
+train_indices
+```
+
+### Part B
+
+```{r ,message=FALSE,out.width="80%"}
+train_set <- cars[train_indices,]
+trained_model <- lm(lm_reduced, data = train_set)
+coefficients(trained_model)
+```
+
+## Part C 
+
+```{r ,message=FALSE,out.width="80%"}
+test_set <- cars[-train_indices,]
+mpg_predicted <- predict(trained_model, test_set)
+
+mse_in2 <- mse_in(trained_model,train_set)
+mse_out2 <- mean((test_set$mpg - mpg_predicted)^2)
+
+mse_in2  # In-sample mean squared error
+mse_out2  # Out-of-sample mean squared error
+```
+
+
+## Part D
+
+```{r ,message=FALSE,out.width="80%"}
+mpg_actual <- test_set$mpg
+pred_err <- mpg_actual - mpg_predicted
+results <- data.frame(Actual = mpg_actual, Predicted = mpg_predicted, out = pred_err)
+
+# Show the first several rows of the results data frame
+head(results,5)
+```
+
+\newpage
+
+## Question 3
+
+## Part A
+
+## Part I
+
+```{r ,message=FALSE,out.width="80%"}
+k_fold_mse1 <- function(dataset, k=10,model) {
+  fold_pred_errors <- sapply(1:k, \(i) {
+    fold_i_pe1(i, k, dataset,model)
+  })
+  pred_errors <- unlist(fold_pred_errors)
+  mean(pred_errors^2)
+}
+
+fold_i_pe1 <- function(i, k, dataset,model) {
+  folds <- cut(1:nrow(dataset), k, labels = FALSE)
+  test_indices <- which(folds == i)
+  test_set <- dataset[test_indices,]
+  train_set = dataset[-test_indices, ]
+  trained_model = lm(model,data=train_set)
+  predictions = predict(trained_model, test_set)
+  actuals=test_set[,1]  
+  pred_errors = actuals - predictions  
+  return(pred_errors)
+}
+
+models <- list(
+  lm_full = list(formula = cars_full),
+  lm_reduced = list(formula = cars_reduced),
+  lm_poly2_full = list(formula = cars_full_poly2),
+  lm_poly2_reduced = list(formula = cars_reduced_poly2),
+  lm_poly6_reduced = list(formula = cars_reduced_poly6)
+)
+# Perform k-fold cross-validation for each model and report MSEout
+results <- lapply(models, function(model) {
+  mse_out <- k_fold_mse1(cars, k = 10,model)
+  return(mse_out)
+})
+
+results_df <- data.frame(Model = names(results), MSEout = unlist(results))
+
+k_fold_mse2 <- function(dataset, k = 10, model) {
+  fold_pred_errors <- sapply(1:k, \(i) {
+    fold_i_pe2(i, k, dataset, model)
+  })
+  pred_errors <- unlist(fold_pred_errors)
+  mean(pred_errors^2)
+}
+
+fold_i_pe2 <- function(i, k, dataset, model) {
+  folds <- cut(1:nrow(dataset), k, labels = FALSE)
+  test_indices <- which(folds == i)
+  test_set <- dataset[test_indices,]
+  train_set <- dataset[-test_indices, ]
+  trained_model <- rpart(model, data = train_set)
+  predictions <- predict(trained_model, test_set)
+  actuals <- test_set[, 1]
+  pred_errors <- actuals - predictions
+  return(pred_errors)
+}
+
+models2 <- list(
+  rt_full = list(formula = rt_full),
+  rt_reduced = list(formula = rt_reduced)
+)
+
+results2 <- lapply(models2, function(model) {
+  mse_out2 <- k_fold_mse2(cars, k = 10, model)
+  return(mse_out2)
+})
+
+
+# Create a data frame to store the results
+results_df2 <- data.frame(Model = names(results2), MSEout = unlist(results2))
+
+MSE_Out<- rbind(results_df,results_df2)
+MSE_Out
+```
+
+## Part II
+
+```{r ,message=FALSE,out.width="80%"}
+cbind(MSE_Out[2],mse_report[2])
+```
+\
+**Answer** : MSE_Out is Bigger.
+
+## Part III
+
+```{r ,message=FALSE,out.width="80%"}
+set.seed(NULL)
+repetitions <- 5
+
+mse_out_repetitions <- replicate(repetitions, {
+  mse_out <- k_fold_mse1(cars, k = 10, model = lm_full)
+  return(mse_out)
+})
+
+mse_out_repetitions
+```
+
+## Part B
+
+## Part I
+
+```{r ,message=FALSE,out.width="80%"}
+k <- 392
+n <- nrow(cars)  # Assuming 'cars' is the dataset
+
+# Initialize empty vectors to store the number of rows
+train_rows <- numeric(k)
+test_rows <- numeric(k)
+
+# Calculate the number of rows in each dataset for each iteration
+for (i in 1:k) {
+  test_rows[i] <- ceiling(n / k)
+  train_rows[i] <- n - test_rows[i]
+  n <- n - test_rows[i]
+}
+
+# Print the number of rows in the training dataset and test dataset for each iteration
+for (i in 1:k) {
+  cat("Iteration", i, ": Train Rows =", train_rows[i], ", Test Rows =", test_rows[i], "\n")
+}
+```
+\
+
+**Answer**: There are 391 rows are in the training dataset and test dataset of each iteration of k-fold CV when k=392
+
+## Part II
+
+```{r ,message=FALSE,out.width="80%"}
+results3 <- lapply(models, function(model) {
+  mse_out3 <- k_fold_mse2(cars, k = 392, model)
+  return(mse_out3)
+})
+
+results_df3 <- data.frame(Model = names(results3), MSEout = unlist(results3))
+# Create a data frame to store the results
+results4 <- lapply(models2, function(model) {
+  mse_out4 <- k_fold_mse1(cars, k = 392, model)
+  return(mse_out4)
+})
+
+results_df4 <- data.frame(Model = names(results4), MSEout = unlist(results4))
+
+MSE_Out2<- rbind(results_df3,results_df4)
+MSE_Out2
+```
+
+## Part III
+
+```{r ,message=FALSE,out.width="80%"}
+set.seed(27935752)
+repetitions <- 5
+
+mse_out_repetitions <- replicate(repetitions, {
+  mse_out <- k_fold_mse1(cars, k = 392, model = lm_full)
+  return(mse_out)
+})
+
+mse_out_repetitions
+```
+
+## Part IV
+
+```{r ,message=FALSE,out.width="80%"}
+mse_lm_full <- k_fold_mse1(cars, k = 392,list(formula = cars_full))
+mse_lm_poly2_full <- k_fold_mse1(cars, k = 392, list(formula = cars_full_poly2))
+mse_rt_full <- k_fold_mse2(cars, k = 392, list(formula = cars_reduced_poly2))
+
+# Calculate MSEin for reduced models
+mse_lm_reduced <- k_fold_mse1(cars, k = 392, lm_reduced)
+mse_lm_poly2_reduced <- k_fold_mse1(cars, k = 392,  lm_poly2_reduced)
+mse_rt_reduced <- k_fold_mse2(cars, k = 392, rt_reduced)
+
+# Compare MSEin values between full and reduced models
+msein_comparison <- data.frame(
+  Model = c("lm_full", "lm_poly2_full", "rt_full"),
+  MSEin_Full = c(mse_lm_full, mse_lm_poly2_full, mse_rt_full),
+  MSEin_Reduced = c(mse_lm_reduced, mse_lm_poly2_reduced, mse_rt_reduced)
+)
+
+msein_comparison
+```
+
+## Part V
+
+```{r ,message=FALSE,out.width="80%"}
+# Calculate MSEin for reduced quadratic regression
+mse_lm_poly2_reduced <- k_fold_mse1(cars, k = 392, model = list(formula = cars_reduced_poly2))
+
+# Calculate MSEin for reduced 6th order polynomial regression
+mse_lm_poly6_reduced <- k_fold_mse1(cars, k = 392, model = list(formula = cars_reduced_poly6))
+
+# Calculate MSEout for reduced quadratic regression
+mseout_lm_poly2_reduced <- k_fold_mse1(cars, k = 392, model = list(formula = cars_reduced_poly2))
+
+# Calculate MSEout for reduced 6th order polynomial regression
+mseout_lm_poly6_reduced <- k_fold_mse1(cars, k = 392, model = list(formula = cars_reduced_poly6))
+
+# Compare MSEin and MSEout values between reduced quadratic and 6th order polynomial regressions
+mse_comparison <- data.frame(
+  Model = c("lm_poly2_reduced", "lm_poly6_reduced"),
+  MSEin = c(mse_lm_poly2_reduced, mse_lm_poly6_reduced),
+  MSEout = c(mseout_lm_poly2_reduced, mseout_lm_poly6_reduced)
+)
+
+mse_comparison
+```

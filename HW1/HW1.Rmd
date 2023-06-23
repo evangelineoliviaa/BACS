@@ -1,0 +1,116 @@
+---
+title: "Homework 1 BACS"
+author: "109006206"
+date: "2023-02-19"
+output: pdf_document
+fontsize: 12pt
+header-includes:
+  - \usepackage{setspace}
+  - \onehalfspacing
+  - \usepackage{fancyhdr}
+  - \fancyhead[r]{109006206}
+  - \pagestyle{fancy}
+  - \setlength{\headheight}{15pt}
+---
+
+### Opening Libraries
+```{r,message=FALSE}
+require(dplyr)
+```
+<br>
+
+### Set Working Directories
+```{r,message=FALSE}
+setwd("/Users/olivia/Documents/Documents/Study/Semester 6/BACS")
+```
+<br>
+
+### Import the Data
+```{r,message=FALSE}
+data<-read.table(file="customers.txt",header=TRUE)
+```
+<br>
+
+#### 1. What is the 5th element in the original list of ages?
+##### To get the 5th element we need to access the 5th row of the data so here i use data[row,column]
+```{r,message=FALSE}
+data[5,]
+```
+<br>
+
+#### 2. What is the fifth lowest age?
+##### I use unique() to sort out duplicate ages and arrange() to arrange the data based on ascending order
+```{r,message=FALSE}
+temp<-unique(arrange(data,age))
+temp[5,]
+```
+<br>
+
+#### 3. Extract the five lowest ages together
+##### I use data[from:until,] to print out from a certain row number to a certain row number.
+```{r,message=FALSE}
+temp[1:5,]
+```
+<br>
+
+#### 4. Get the five highest ages by first sorting them in decreasing order first.
+##### Here I use sort and set the decreasing into TRUE so it returns. I also unique the data to remove the duplicate ages.
+```{r,message=FALSE}
+temp2<-sort(unique(data$age),decreasing = TRUE)
+temp2[1:5]
+```
+<br>
+
+#### 5. What is the average (mean) age?
+##### I use mean() to get the average age.
+```{r,message=FALSE}
+mn<-mean(data$age)
+mn
+```
+<br>
+
+#### 6. What is the standard deviation of ages?
+##### I use sd() that's already provided by r to find the standard deviation.
+```{r,message=FALSE}
+sd(data$age)
+```
+<br>
+
+
+#### 7. Make a new variable called age_diff, with the difference between each age and the mean age
+##### Here i use abs() so all the result will be positive since it would be make more sense to find the difference. To calculate the difference I just calculate it by age-average_age
+```{r,message=FALSE}
+data$age_diff<-abs(data$age-mn)
+head(data,5)
+```
+<br>
+
+#### 8. What is the average “difference between each age and the mean age”?
+##### I use mean() to find the average
+```{r,message=FALSE}
+av<-mean(data$age_diff)
+av
+```
+<br>
+
+#### 9. Visualize the raw data as we did in class: (a) histogram, (b) density plot, (c) boxplot+stripchart
+##### 
+Histogram is used to summarize discrete or continuous data that are measured on an interval scale.
+```{r,message=FALSE}
+hist(data$age)
+```
+<br>
+
+##### Density plots are used to observe the distribution of a variable in a dataset.
+```{r,message=FALSE}
+d<-density(data$age)
+plot(d,main="Density of Age")
+```
+<br>
+
+##### Box plots are used to show distributions and comparison between multiple groups. A strip chart can be used to visualize dozens of time series at once.
+```{r,message=FALSE}
+boxplot(data$age, horizontal = TRUE)
+stripchart(data$age, method = "stack", add = TRUE)
+```
+<br>

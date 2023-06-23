@@ -1,0 +1,203 @@
+---
+title: "HW14"
+author: '109006206'
+output: pdf_document
+header-includes:
+  - \usepackage{setspace}
+  - \onehalfspacing
+  - \usepackage{fancyhdr}
+  - \fancyhead[r]{109006206}
+  - \pagestyle{fancy}
+---
+## Set Working Directories & Reading Files
+<br>
+
+```{r,message=FALSE,out.width="80%"}
+library(readxl)
+library(ggplot2)
+library(magrittr)
+library(psych)
+setwd("/Users/olivia/Documents/Documents/Study/Semester 6/BACS/HW14")
+security <- read_excel("security_questions.xlsx", sheet = "data")
+```
+
+## QUESTION 1
+<br>
+
+#### A) Show a single visualization with scree plot of data, scree plot of simulated noise (use average eigenvalues of >= 100 noise samples), and a horizontal line showing the eigenvalue = 1 cutoff.
+
+\
+```{r,message=FALSE,out.width="80%"}
+pca1 <- prcomp(security, scale. = TRUE)
+
+sim_noise_ev <- function(n, p) {
+  noise <- data.frame(replicate(p, rnorm(n)))
+  eigen(cor(noise))$values
+}
+evalues_noise <- replicate(100, sim_noise_ev(dim(security)[1], dim(security)[2]))
+evalues_mean <- apply(evalues_noise, 1, mean)
+
+screeplot(pca1, type="lines",main = "Security Questions PCA Scree Plot")
+lines(evalues_mean, type="b",col="orange")
+abline(h=1, lty="dotted")
+
+legend(6,8,c("PCA","PA"),lty = c(1,1),col=c("black","orange"))
+```
+
+#### B) How many dimensions would you retain if we used Parallel Analysis?
+
+\
+
+**Answer** : I would retain 3 dimensions since it is the point where it starts to cross the data.
+
+\newpage
+
+## QUESTION 2
+<br>
+
+#### A) Looking at the loadings of the first 3 principal components, to which components does each item seem to best belong?
+
+\
+```{r,message=FALSE,out.width="80%"}
+pca <- principal(security, nfactors = 3, rotate = "none")
+pca
+```
+
+#### B) How much of the total variance of the security dataset do the first 3 PCs capture?
+
+\
+```{r,message=FALSE,out.width="80%"}
+variance_prop <- pca$values[1:3]
+variance_prop
+sum_variance <- sum(variance_prop)
+sum_variance
+```
+
+\
+**Answer** : The total variance from PC1,PC2,PC3 is 12.06
+
+#### C) Looking at commonality and uniqueness, which items are less than adequately explained by the first 3 principal components?
+
+\
+```{r,message=FALSE,out.width="80%"}
+threshold <- 0.5
+less_explained_items <- rownames(pca$loadings)[pca$communality < threshold]
+less_explained_items
+pca$communality[2]
+```
+\
+**Answer** : It would be "Q2" if I set it < 0.5 
+
+
+#### D) How many measurement items share similar loadings between 2 or more components?
+
+\
+```{r,message=FALSE,out.width="80%"}
+shared_loadings_items <- c()
+for (i in 1:(ncol(pca$loadings) - 1)) {
+  for (j in (i + 1):ncol(pca$loadings)) {
+    shared_items <- rownames(pca$loadings)[pca$loadings[, i] >= 
+                                             0.5 & pca$loadings[, j] >= 0.5]
+    shared_loadings_items <- union(shared_loadings_items, shared_items)
+  }
+}
+
+cat("Measurement items with similar loadings between two or more components:",shared_loadings_items)
+```
+
+
+#### E) Can you interpret a ‘meaning’ behind the first principal component from the items that load best upon it?
+
+\
+**Answer**: The item that load best upon the first principal component is Q1,Q14,Q18. They suggest that the first principal component reflects customers' perceptions of the site's commitment to safeguarding the confidentiality and accuracy of their transactions.
+
+
+\newpage
+
+## QUESTION 3
+<br>
+
+#### A) Individually, does each rotated component (RC) explain the same, or different, amount of variance than the corresponding principal components (PCs)?
+
+\
+```{r,message=FALSE,out.width="80%"}
+pca_rc <-principal(security, nfactors=3, rotate="varimax", scores=TRUE)
+pca_rc
+rotated_components <- pca_rc$values[1:3]
+rotated_components
+variance_prop
+```
+
+#### B) Together, do the three rotated components explain the same, more, or less cumulative variance as the three principal components combined?
+
+\
+```{r,message=FALSE,out.width="80%"}
+total_rc <- sum(pca_rc$values[1:3])
+total_not <- sum(pca$values[1:3])
+
+if (total_rc==total_not) {
+  print("Yes, the total the three rotated components explain")
+  print("the same cumulative variance as the three principal components combined")
+} else {
+  print("No, the total the three rotated components does not explain")
+  print("the same cumulative variance as the three principal components combined")
+}
+```
+
+#### C) Looking back at the items that shared similar loadings with multiple principal components (#2d), do those items have more clearly differentiated loadings among rotated components?
+
+\
+```{r,message=FALSE,out.width="80%"}
+items_of_interest <- c("Q4", "Q12", "Q17")
+principal_loadings_interest <- pca$loadings[items_of_interest, ]
+rotated_loadings_interest <- pca_rc$loadings[items_of_interest, ]
+loadings_diff <- abs(principal_loadings_interest - rotated_loadings_interest)
+loadings_comparison <- cbind(principal_loadings_interest, rotated_loadings_interest,loadings_diff)
+colnames(loadings_comparison)[(ncol(loadings_comparison)-2):
+                                ncol(loadings_comparison)] <- c("Loadings Difference1",                                "Loadings Difference2", "Loadings Difference3")
+print(loadings_comparison)
+```
+
+\
+**Answer** : The items have more clearly differentiated loadings
+
+#### D) Can you now more easily interpret the “meaning” of the 3 rotated components from the items that load best upon each of them? (see the wording of the questions of those items)
+
+\
+**Answer** : RC1 represents a component related to the security and confidentiality aspects of the website or service.
+\
+```{r,message=FALSE,out.width="80%"}
+pca_rc$loadings[pca_rc$loadings[,1]>0.5,1]
+```
+\
+
+**Answer** : RC2 appears to reflect a component related to user-friendliness, control, and management of privacy settings. 
+
+\
+```{r,message=FALSE,out.width="80%"}
+pca_rc$loadings[pca_rc$loadings[,2]>0.5,1]
+```
+\
+
+**Answer** : 
+RC3 seems to represent a component related to the accuracy and organization of information provided by the website.
+
+\
+```{r,message=FALSE,out.width="80%"}
+pca_rc$loadings[pca_rc$loadings[,3]>0.5,1]
+```
+
+\newpage
+
+#### E) If we reduced the number of extracted and rotated components to 2, does the meaning of our rotated components change?
+
+\
+```{r,message=FALSE,out.width="80%"}
+reduced <- principal(security, nfactors=2, rotate="varimax", scores=TRUE)
+RC1<- reduced$loadings[reduced$loadings[,1]>0.5,1]
+RC1
+RC2<- reduced$loadings[reduced$loadings[,2]>0.5,1]
+RC2
+```
+\
+**Answer**: If we reduce the factors by 1 the RC3 will combine into RC1 and RC2 and create a new RC1 and RC2. It wont change the meaning of our rotated components.

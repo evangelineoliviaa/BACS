@@ -1,0 +1,219 @@
+---
+title: "HW7"
+author: '109006206'
+output: pdf_document
+header-includes:
+  - \usepackage{setspace}
+  - \onehalfspacing
+  - \usepackage{fancyhdr}
+  - \fancyhead[r]{109006206}
+  - \pagestyle{fancy}
+---
+## Set Working Directories & Reading Files
+<br>
+```{r,message=FALSE,out.width="80%"}
+setwd("/Users/olivia/Documents/Documents/Study/Semester 6/BACS/HW7")
+require("ggplot2")
+require("tidyverse")
+require("FSA")
+Media_1 <- read.csv("pls-media1.csv")
+Media_2 <- read.csv("pls-media2.csv")
+Media_3 <- read.csv("pls-media3.csv")
+Media_4 <- read.csv("pls-media4.csv")
+```
+
+
+## QUESTION 1
+<br>
+
+#### A) What are the means of viewers’ intentions to share (INTEND.0) on each of the four media types?
+\
+```{r,message=FALSE,out.width="80%"}
+m1_mean <- mean(Media_1$INTEND.0)
+m2_mean <- mean(Media_2$INTEND.0)
+m3_mean <- mean(Media_3$INTEND.0) 
+m4_mean <- mean(Media_4$INTEND.0)
+```
+m1_mean : `r mean(Media_1$INTEND.0)`
+\
+m2_mean : `r mean(Media_2$INTEND.0)`
+\
+m3_mean : `r mean(Media_3$INTEND.0)`
+\
+m4_mean : `r mean(Media_4$INTEND.0)`
+
+#### B) Visualize the distribution and mean of intention to share, across all four media.
+\
+```{r,message=FALSE,out.width="80%"}
+m <-rbind(Media_1,Media_2,Media_3,Media_4)
+plot(density(Media_2$INTEND.0),col = 'pink',main="Distribution Across Four Media",xlab="Media",ylab="Intention.0")
+lines(density(Media_1$INTEND.0),col = 'lightblue')
+lines(density(Media_3$INTEND.0),col = 'lightgreen')
+lines(density(Media_4$INTEND.0),col = 'lightgrey')
+legend('topright',inset=0.001,c("Media 1","Media 2","Media 3","Media 4"),lty=1,col=c('lightblue','pink','lightgreen','lightgrey'),cex = 0.5)
+```
+\
+
+#### C) From the visualization alone, do you feel that media type makes a difference on intention to share?
+\
+**Answer** : I think the media have some affect to the intention to share based on the visualization
+
+\newpage
+
+## QUESTION 2
+
+#### A) State the null and alternative hypotheses when comparing INTEND.0 across four groups in ANOVA
+\
+Null Hypothesis: there is no difference in the means of INTEND.0 between the four groups 
+\
+(H0: $\mu$ 1 = $\mu$ 2 = $\mu$ 3 = $\mu$ 4)
+\
+Alternative Hypothesis : there is a significant difference in the means of INTEND.0 (Not all means are equal)
+
+#### B) Let’s compute the F-statistic ourselves:
+
+#### i) Show the code and results of computing MSTR, MSE, and F
+\
+```{r,message=FALSE,out.width="80%"}
+mbind <- list(Media_1$INTEND.0,Media_2$INTEND.0,Media_3$INTEND.0,Media_4$INTEND.0)
+k <- length(mbind)
+n <- 4
+grandmean<- mean(sapply(mbind,mean))
+#MSTR
+SSTR<-function(){
+  (nrow(Media_1) * (mean(Media_1$INTEND.0) - grandmean)^2)+
+  (nrow(Media_2) * (mean(Media_2$INTEND.0) - grandmean)^2)+
+  (nrow(Media_3) * (mean(Media_3$INTEND.0) - grandmean)^2)+
+  (nrow(Media_4) * (mean(Media_4$INTEND.0) - grandmean)^2)
+}
+df_mstr<-n-1
+mstr<-SSTR()/df_mstr
+mstr
+
+#MSE
+SSE<-function(){
+    ((nrow(Media_1)-1) * (sd(Media_1$INTEND.0)^2))+
+    ((nrow(Media_2)-1) * (sd(Media_2$INTEND.0)^2))+
+    ((nrow(Media_3)-1) * (sd(Media_3$INTEND.0)^2))+
+    ((nrow(Media_4)-1) * (sd(Media_4$INTEND.0)^2))
+}
+nt <- nrow(Media_1)+nrow(Media_2)+nrow(Media_3)+nrow(Media_4)
+df_mse <- nt - k
+mse <- SSE()/df_mse
+mse
+
+f_value <-mstr/mse
+f_value
+```
+**MSTR** : `r mstr`
+\
+**MSE** : `r mse`
+\
+**F** : `r f_value`
+
+#### ii) Compute the p-value of F, from the null F-distribution; is the F-value significant? If so, state your conclusion for the hypotheses.
+\
+```{r,message=FALSE,out.width="80%"}
+p_value<-pf(f_value, df_mstr, df_mse, lower.tail=FALSE)
+```
+Since the p-value is `r p_value` so we can conclude that the F-value is not significant
+\
+
+#### C) Conduct the same one-way ANOVA using the aov() function in R – confirm that you got similar results.
+\
+```{r,message=FALSE,out.width="80%"}
+m_new1 <- rbind(Media_1,Media_2,Media_3,Media_4)
+m_new1 <- m_new1[1:2]
+oneway.test(m_new1$INTEND.0 ~ factor(m_new1$media),var.equal = TRUE)
+anova_model <- aov(m_new1$INTEND.0 ~ factor(m_new1$media))
+summary(anova_model)
+```
+
+
+#### D) Regardless of your conclusions, conduct a post-hoc Tukey test (feel free to use the TukeyHSD() function included in base R) to see if any pairs of media have significantly different means – what do you find?
+\
+```{r,message=FALSE,out.width="80%"}
+TukeyHSD(anova_model, conf.level = 0.05)
+```
+**Answer** : As we can see from the data we could say there is no different means at $\alpha$ = .05
+
+#### E) Do you feel the classic requirements of one-way ANOVA were met?
+\
+1. The variance of the response variables is the same for all treatments/populations
+\
+**Answer** : As we can see from the data below we could conclude that there are some differences in the variance
+```{r,message=FALSE,out.width="80%"}
+Variance<- c(var(Media_1$INTEND.0),
+var(Media_2$INTEND.0),
+var(Media_3$INTEND.0),
+var(Media_4$INTEND.0))
+Variance
+```
+\
+2. Each treatment/population’s response variable is normally distributed
+```{r,message=FALSE,out.width="80%"}
+shapiro.test(Media_1$INTEND.0)
+shapiro.test(Media_2$INTEND.0)
+shapiro.test(Media_3$INTEND.0)
+shapiro.test(Media_4$INTEND.0)
+```
+\
+**Answer** : As we can see from the result the second data p-value is bigger than 0.05 which indicates that the data is normally distributed.
+\
+\
+**In conclusion, the classic requirements of one-way ANOVA were not met.**
+\newpage
+
+## QUESTION 3
+
+#### A) State the null and alternative hypotheses
+\
+Null Hypothesis : All media would give similar value if randomly drawn from them 
+\
+(H0: $\mu$ 1 = $\mu$ 2 = $\mu$ 3 = $\mu$ 4)
+\
+Alternative Hypothesis : At least one media would give a larger value than another if randomly drawn
+
+#### B) Let’s compute (an approximate) Kruskal Wallis H ourselves (use the formula we saw in class or another formula might have found at a reputable website/book):
+
+#### i) Show the code and results of computing H
+\
+```{r,message=FALSE,out.width="80%"}
+mkw <- m[1:2]
+ranks <- rank(mkw$INTEND.0)
+N<-length(ranks)
+group_ranks <- split(ranks,f = mkw$media)
+
+sum_ranks <-sapply(group_ranks,sum)
+length_ranks<- (sapply(group_ranks,length))
+Total<- sum((sum_ranks^2)/length_ranks)
+
+H<- (((12/(N*(N+1))) * Total) - 3*(N+1))
+H
+```
+**H** : `r H`
+
+#### ii) Compute the p-value of H, from the null chi-square distribution; is the H value significant? If so, state your conclusion of the hypotheses.
+\
+```{r,message=FALSE,out.width="80%"}
+kw_p<-1 -pchisq(H, df=k-1)
+kw_p
+```
+**P-Value of H** : `r kw_p`
+\
+**Answer** : In conclusion, we should reject the null hypothesis since the p-value < 0.05
+\newpage
+
+#### C) Conduct the same test using the kruskal.wallis() function in R – confirm that you got similar results.
+\
+```{r,message=FALSE,out.width="80%"}
+kruskal.test(mkw$INTEND.0 ~ mkw$media, mkw)
+```
+
+#### D) Regardless of your conclusions, conduct a post-hoc Dunn test to see if the values of any pairs of media are significantly different – what are your conclusions?
+\
+```{r,message=FALSE,out.width="80%"}
+dunnTest(INTEND.0~media, data = mkw , method = "bonferroni")
+```
+\
+**Answer** : At $\alpha$ = .05, we can conclude that media 2 and media 4 are statistically significantly different from each other (P.adj = 0.0474) 
